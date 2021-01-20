@@ -1,7 +1,7 @@
 {
     "name": "PWA-Tutorial",
-    "short-name": "PWA-Tutorial",
-    "start_url": "/?home=true",
+    "short_name": "PWA-Tutorial",
+    "start_url": ".",
     "icons": [
         {
             "src": "icons/manifest-icon-192.png",
