@@ -36,6 +36,7 @@ function handleBeforeInstallPrompt(event: any) {
 window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
 
 window.addEventListener('appinstalled', (event) => {
+    installPrompt = null;
     console.log('INSTALL: Success');
 });
 
