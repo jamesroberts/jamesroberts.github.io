@@ -1,0 +1,2 @@
+(this["webpackJsonpjamesroberts.github.io"]=this["webpackJsonpjamesroberts.github.io"]||[]).push([[3],{11:function(e,s,c){"use strict";c.r(s);var t=c(1),a=(c(0),c.p+"static/media/logo.6ce24c58.svg");c(12);s.default=function(){return Object(t.jsx)("div",{className:"App",children:Object(t.jsxs)("header",{className:"App-header",children:[Object(t.jsx)("img",{src:a,className:"App-logo",alt:"logo"}),Object(t.jsx)("p",{children:"Hello James"})]})})}},12:function(e,s,c){}}]);
+//# sourceMappingURL=3.df6be6d8.chunk.js.map
