@@ -5,7 +5,7 @@ workbox.routing.registerRoute(
     new workbox.strategies.CacheFirst()
 );
 
-const CACHE_NAME = 'cache-v0.0.0'
+const CACHE_VERSION = 'cache-v0.0.0'
 const CACHED_URLS = [
     '/',
     '/manifest.json',
@@ -17,11 +17,18 @@ const CACHED_URLS = [
 
 // Open cache on install.
 self.addEventListener('install', event => {
-    event.waitUntil(async function () {
-        const cache = await caches.open(CACHE_NAME)
-        await cache.addAll(CACHED_URLS)
-    }())
-})
+    event.waitUntil(async () => {
+        return caches.open(CACHE_VERSION).then(cache => {
+            return Promise.all(
+                CACHED_URLS.map(url => {
+                    return cache.add(url).catch(reason => {
+                        console.log(`Failed to cache '${url}' Reason: ${reason}`);
+                    });
+                })
+            );
+        });
+    })
+});
 
 // Cache and update with stale-while-revalidate policy.
 self.addEventListener('fetch', event => {
@@ -32,7 +39,7 @@ self.addEventListener('fetch', event => {
     }
 
     event.respondWith(async function () {
-        const cache = await caches.open(CACHE_NAME)
+        const cache = await caches.open(CACHE_VERSION)
 
         const cachedResponse = await cache.match(request)
         const networkResponse = fetch(request)
@@ -51,12 +58,12 @@ self.addEventListener('fetch', event => {
 // Clean up caches other than current.
 self.addEventListener('activate', event => {
     event.waitUntil(async function () {
-        const cacheNames = await caches.keys()
+        const cacheVersions = await caches.keys()
 
         await Promise.all(
-            cacheNames.filter((cacheName) => {
-                return cacheName !== CACHE_NAME
-            }).map(cacheName => caches.delete(cacheName))
+            cacheVersions.filter((cacheVersion) => {
+                return cacheVersion !== CACHE_VERSION
+            }).map(cacheVersion => caches.delete(cacheVersion))
         )
     }())
 })
