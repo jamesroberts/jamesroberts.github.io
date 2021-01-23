@@ -39,7 +39,7 @@ self.addEventListener('fetch', event => {
     }
 
     event.respondWith(async function () {
-        const cache = await caches.open(CACHE_NAME)
+        const cache = await caches.open(CACHE_VERSION)
 
         const cachedResponse = await cache.match(request)
         const networkResponse = fetch(request)
@@ -58,12 +58,12 @@ self.addEventListener('fetch', event => {
 // Clean up caches other than current.
 self.addEventListener('activate', event => {
     event.waitUntil(async function () {
-        const cacheNames = await caches.keys()
+        const cacheVersions = await caches.keys()
 
         await Promise.all(
-            cacheNames.filter((cacheName) => {
-                return cacheName !== CACHE_NAME
-            }).map(cacheName => caches.delete(cacheName))
+            cacheVersions.filter((cacheVersion) => {
+                return cacheVersion !== CACHE_VERSION
+            }).map(cacheVersion => caches.delete(cacheVersion))
         )
     }())
 })
