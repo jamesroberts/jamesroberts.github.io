@@ -29,14 +29,16 @@ export default function PeerJs() {
         });
         peer.on('call', function (call) {
             // Answer the call, providing our mediaStream
-            setConn(call);
             setFriendId(call.peer);
             navigator.mediaDevices.getUserMedia({ audio: false, video: true })
                 .then(function (mediaStream) {
                     console.log("Answering media stream..");
                     console.log(mediaStream);
                     call.answer(mediaStream);
-                    setStream(mediaStream);
+                    call.on('stream', function (stream) {
+                        console.log("Setting stream from caller");
+                        setStream(stream);
+                    });
                 })
                 .catch(function (err) {
                     console.log(err);
@@ -66,9 +68,12 @@ export default function PeerJs() {
         console.log("Calling...");
         navigator.mediaDevices.getUserMedia({ audio: false, video: true })
             .then(function (stream) {
-                let conn = peer.call(friendId, stream);
-                setConn(conn);
-                setStream(stream);
+                let call = peer.call(friendId, stream);
+                call.on('stream', function (stream) {
+                    console.log("Setting stream from peer");
+                    setStream(stream);
+                });
+                setConn(call);
             })
             .catch(function (err) {
                 console.log(err);
