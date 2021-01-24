@@ -9,10 +9,10 @@ function App() {
   return (
     <div className="App">
       <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p> Hello James </p>
+        {/* <img src={logo} className="App-logo" alt="logo" />
+        <p> Hello James </p> */}
         {/* <InstallButton /> */}
-        <RequestButton />
+        {/* <RequestButton /> */}
         <PeerJs />
       </header>
     </div>
