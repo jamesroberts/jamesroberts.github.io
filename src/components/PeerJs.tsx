@@ -1,12 +1,11 @@
 import Peer, { DataConnection, MediaConnection } from 'peerjs';
 import React, { useState, useEffect, useCallback } from 'react'
-import { Button, Input, TextField } from '@material-ui/core';
+import { Button, Input } from '@material-ui/core';
 import VideoChat from "./VideoChat";
 import { Switch } from '@material-ui/core/';
 import VideoCallIcon from '@material-ui/icons/VideoCall';
 import ShareIcon from '@material-ui/icons/Share';
 import { useLocation } from "react-router-dom";
-import { Stream } from 'stream';
 
 export default function PeerJs() {
     const [id, setId] = useState("");
@@ -18,6 +17,7 @@ export default function PeerJs() {
     const [peerStreams, setPeerStreams] = useState<MediaStream[] | []>([]);
     const [userStream, setUserStream] = useState<MediaStream | null>(null);
     const [shareScreen, setShareScreen] = useState<boolean>(false);
+    const [incomingCall, setIncomingCall] = useState<boolean>(false);
 
     function useQuery() {
         return new URLSearchParams(useLocation().search);
@@ -43,7 +43,15 @@ export default function PeerJs() {
 
     function getAvailableConstraints() {
         // TODO: Get specific constraints
-        return { audio: false, video: true };
+
+        return {
+            audio: false,
+            video: {
+                frameRate: { ideal: 30, exact: 30 },
+                // height: { ideal: 250, max: 500 },
+                // width: { ideal: 250, max: 300 },
+            }
+        };
     }
 
     async function getUserStream() {
@@ -56,6 +64,7 @@ export default function PeerJs() {
             } else {
                 stream = await navigator.mediaDevices.getUserMedia(constraints);
             }
+            setUserStream(stream);
             return stream;
         } catch (error) {
             console.log(error);
@@ -63,7 +72,9 @@ export default function PeerJs() {
     }
 
     async function handlePeerRecieveMediaCall(call: MediaConnection) {
+        console.log("Handling call");
         // TODO: Add an answer or decline prompt
+        setIncomingCall(true);
         setFriendId(call.peer);
         let stream = await getUserStream();
         if (stream) {
@@ -77,6 +88,7 @@ export default function PeerJs() {
     function addDataConnectionListeners(conn: DataConnection) {
         conn.on('open', () => {
             console.log("Connected opened with peer: " + conn.peer);
+            console.log(userStream);
         });
         conn.on('data', (data: any) => {
             // TODO: Set this to state.
@@ -88,8 +100,10 @@ export default function PeerJs() {
             console.log(userStream);
             stopPeerStream(conn.peer);
             if (peerStreams.length == 0) {
+                console.log("No more peer streams");
                 stopAllStreams();
             }
+            setFriendId('');
         });
         conn.on('error', (error: any) => {
             // Handle error
@@ -109,6 +123,7 @@ export default function PeerJs() {
             userStream.getTracks().forEach(track => track.stop());
             userStream.getVideoTracks().forEach(track => track.stop());
             console.log("User stream tracks stopped");
+            setUserStream(null);
         }
         if (peerStreams) {
             peerStreams.forEach((peer: MediaStream) => {
@@ -116,10 +131,10 @@ export default function PeerJs() {
                 peer.getVideoTracks().forEach(track => track.stop());
             });
             console.log("Peer streams stopped");
+            setMediaConnection(null);
+            setPeerStreams(() => []);
         }
         setUserStream(null);
-        setMediaConnection(null);
-        setPeerStreams(() => []);
     }
 
     function stopPeerStream(peerId: string) {
@@ -137,11 +152,7 @@ export default function PeerJs() {
         peer.on('connection', handlePeerDataConnection);
         peer.on('call', handlePeerRecieveMediaCall);
         console.log("Peer initialized");
-    }, [peer]);
-
-    useEffect(() => {
-        console.log(userStream);
-    }, [userStream])
+    }, []);
 
     function send(conn: DataConnection) {
         conn.send('Hello!');
@@ -162,22 +173,13 @@ export default function PeerJs() {
     }
 
     async function call() {
-        try {
-            let stream: MediaStream;
-            if (shareScreen) {
-                // @ts-ignore
-                stream = await navigator.mediaDevices.getDisplayMedia({ audio: false, video: true });
-            } else {
-                stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: true });
-            }
-
+        let stream = await getUserStream();
+        if (stream) {
             let call = peer.call(friendId, stream);
             call = addMediaConectionListeners(call);
             setMediaConnection(call);
             setUserStream(stream);
             connect();
-        } catch (error) {
-            console.log(error);
         }
     }
 
@@ -193,37 +195,46 @@ export default function PeerJs() {
         }
     }
 
-    return (
-        <div>
-            <Input onChange={event => setFriendId(event.target.value)} placeholder="Caller ID" />
-            {/* <Button variant="contained" color="primary" onClick={send}> Send </Button>
-            <Button variant="contained" color="primary" onClick={connect}> Conect </Button> */}
-            <Button variant="contained" color="primary" onClick={call} style={{ margin: 10 }}> <VideoCallIcon fontSize="large" /> </Button>
-
-            <Button variant="contained" color="primary" onClick={generateLink}> <ShareIcon fontSize="large" /> </Button>
-            {linkCopied ? <div style={{ fontSize: 15, color: "green" }}>Link copied to clipboard</div> : null}
-            <br />
-            <Switch
-                checked={shareScreen}
-                onChange={handleSwitchChange}
-                color="primary"
-                name="checkedB"
-                inputProps={{ 'aria-label': 'primary checkbox' }}
-            /> Share Screen
+    function callForm() {
+        return (
             < div >
-                {"Your Caller ID: " + id}
-                < br />
-                {(friendId !== '') ? "Connecting to: " + friendId : null}
+                <Input onChange={event => setFriendId(event.target.value)} placeholder="Caller ID" />
+                {/* <Button variant="contained" color="primary" onClick={send}> Send </Button>
+                <Button variant="contained" color="primary" onClick={connect}> Conect </Button> */}
+                <Button variant="contained" color="primary" onClick={call} style={{ margin: 10 }}> <VideoCallIcon fontSize="large" /> </Button>
+
+                <Button variant="contained" color="primary" onClick={generateLink}> <ShareIcon fontSize="large" /> </Button>
+                { linkCopied ? <div style={{ fontSize: 15, color: "green" }}>Link copied to clipboard</div> : null}
+                <br />
+                <Switch
+                    checked={shareScreen}
+                    onChange={handleSwitchChange}
+                    color="primary"
+                    name="checkedB"
+                    inputProps={{ 'aria-label': 'primary checkbox' }}
+                /> Share Screen
+                < div >
+                    {"Your Caller ID: " + id}
+                    < br />
+                    {(friendId !== '') ? "Connecting to: " + friendId : null
+                    }
+                </div >
             </div >
-            <VideoChat peerStreams={peerStreams} userStream={userStream} />
-            <div>
+        )
+    }
+
+    return (
+        < div >
+            {peerStreams.length > 0 ? null : callForm()}
+            <VideoChat peerStreams={peerStreams} userStream={userStream} onDisconnect={disconnectMediaConnection} />
+            {/* <div>
                 {
                     mediaConnection
                         ? <Button variant="contained" color="secondary" onClick={disconnectMediaConnection}> Disconnect </Button>
                         : null
                 }
 
-            </div>
+            </div> */}
         </div >
     )
 }
