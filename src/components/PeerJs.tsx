@@ -1,11 +1,12 @@
 import Peer, { DataConnection, MediaConnection } from 'peerjs';
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { Button, Input, TextField } from '@material-ui/core';
 import VideoChat from "./VideoChat";
 import { Switch } from '@material-ui/core/';
 import VideoCallIcon from '@material-ui/icons/VideoCall';
 import ShareIcon from '@material-ui/icons/Share';
 import { useLocation } from "react-router-dom";
+import { Stream } from 'stream';
 
 export default function PeerJs() {
     const [id, setId] = useState("");
@@ -25,13 +26,14 @@ export default function PeerJs() {
     // Clean this up later
     let query = useQuery();
     let friend = query.get("friend");
-    if (friend && friendId == '') {
+    if (friend && friendId === '') {
         setFriendId(friend);
     }
 
     function handleNewPeer(id: string) {
         setId(id)
     }
+
 
     function handlePeerDataConnection(conn: DataConnection) {
         conn = addDataConnectionListeners(conn);
@@ -44,25 +46,31 @@ export default function PeerJs() {
         return { audio: false, video: true };
     }
 
-    async function handlePeerRecieveMediaCall(call: MediaConnection) {
-        // TODO: Add an answer or decline prompt
-        setFriendId(call.peer);
+    async function getUserStream() {
         let constraints = getAvailableConstraints();
         try {
-            let stream;
+            let stream: MediaStream;
             if (shareScreen) {
                 // @ts-ignore
                 stream = await navigator.mediaDevices.getDisplayMedia(constraints);
             } else {
                 stream = await navigator.mediaDevices.getUserMedia(constraints);
             }
-
-            call.answer(stream);
-            setUserStream(stream);
-            call = addMediaConectionListeners(call);
-            setMediaConnection(call);
+            return stream;
         } catch (error) {
             console.log(error);
+        }
+    }
+
+    async function handlePeerRecieveMediaCall(call: MediaConnection) {
+        // TODO: Add an answer or decline prompt
+        setFriendId(call.peer);
+        let stream = await getUserStream();
+        if (stream) {
+            setUserStream(stream);
+            call.answer(stream);
+            call = addMediaConectionListeners(call);
+            setMediaConnection(call);
         }
     }
 
@@ -75,8 +83,13 @@ export default function PeerJs() {
             console.log(data);
         });
         conn.on('close', () => {
-            // Handle error
             console.log("Connection closed.");
+            // TODO: Fix issue where user streams aren't being stopped on friend close
+            console.log(userStream);
+            stopPeerStream(conn.peer);
+            if (peerStreams.length == 0) {
+                stopAllStreams();
+            }
         });
         conn.on('error', (error: any) => {
             // Handle error
@@ -88,19 +101,35 @@ export default function PeerJs() {
     function addMediaConectionListeners(call: MediaConnection) {
         call.on('stream', (stream) => setPeerStreams(peerStreams => [...peerStreams, stream]));
         call.on('error', (error: any) => console.log(error));
-        call.on('close', function () {
-            setPeerStreams(() => []);
-            setMediaConnection(null);
-        });
         return call;
     }
 
     function stopAllStreams() {
-        // @ts-ignore
-        userStream?.getTracks().forEach(track => track.stop());
-        peerStreams?.forEach((stream: MediaStream) => stream.getTracks().forEach(track => track.stop()));
+        if (userStream) {
+            userStream.getTracks().forEach(track => track.stop());
+            userStream.getVideoTracks().forEach(track => track.stop());
+            console.log("User stream tracks stopped");
+        }
+        if (peerStreams) {
+            peerStreams.forEach((peer: MediaStream) => {
+                peer.getTracks().forEach(track => track.stop());
+                peer.getVideoTracks().forEach(track => track.stop());
+            });
+            console.log("Peer streams stopped");
+        }
         setUserStream(null);
+        setMediaConnection(null);
         setPeerStreams(() => []);
+    }
+
+    function stopPeerStream(peerId: string) {
+        peerStreams?.forEach((stream: MediaStream) => {
+            if (stream.id === peerId) {
+                stream.getTracks().forEach(track => track.stop());
+                stream.getVideoTracks().forEach(track => track.stop());
+            }
+        });
+        setPeerStreams((peerStreams) => peerStreams.filter(stream => stream.id !== peerId));
     }
 
     useEffect(() => {
@@ -109,6 +138,10 @@ export default function PeerJs() {
         peer.on('call', handlePeerRecieveMediaCall);
         console.log("Peer initialized");
     }, [peer]);
+
+    useEffect(() => {
+        console.log(userStream);
+    }, [userStream])
 
     function send(conn: DataConnection) {
         conn.send('Hello!');
@@ -121,14 +154,16 @@ export default function PeerJs() {
     }
 
     function disconnectMediaConnection() {
-        mediaConnection?.close()
+        mediaConnection?.close();
+        dataConnection?.close();
         setMediaConnection(null);
         stopAllStreams();
+        setFriendId('');
     }
 
     async function call() {
         try {
-            let stream;
+            let stream: MediaStream;
             if (shareScreen) {
                 // @ts-ignore
                 stream = await navigator.mediaDevices.getDisplayMedia({ audio: false, video: true });
@@ -140,6 +175,7 @@ export default function PeerJs() {
             call = addMediaConectionListeners(call);
             setMediaConnection(call);
             setUserStream(stream);
+            connect();
         } catch (error) {
             console.log(error);
         }
@@ -177,7 +213,7 @@ export default function PeerJs() {
             < div >
                 {"Your Caller ID: " + id}
                 < br />
-                {(friendId != '') ? "Connecting to: " + friendId : null}
+                {(friendId !== '') ? "Connecting to: " + friendId : null}
             </div >
             <VideoChat peerStreams={peerStreams} userStream={userStream} />
             <div>

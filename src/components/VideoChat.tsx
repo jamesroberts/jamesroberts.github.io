@@ -1,8 +1,8 @@
-import React from 'react'
+import React, { useEffect } from 'react'
 import ReactPlayer from 'react-player'
 
 export default function VideoChat(props: any) {
-    console.log(props.peerStreams);
+    // console.log(props.peerStreams);
     let width = "100%";
     let height = "100%";
     if (props.peerStreams.length > 0) {
