@@ -199,6 +199,7 @@ export default function PeerJs() {
         return (
             < div >
                 <Input onChange={event => setFriendId(event.target.value)} placeholder="Caller ID" />
+                <br />
                 {/* <Button variant="contained" color="primary" onClick={send}> Send </Button>
                 <Button variant="contained" color="primary" onClick={connect}> Conect </Button> */}
                 <Button variant="contained" color="primary" onClick={call} style={{ margin: 10 }}> <VideoCallIcon fontSize="large" /> </Button>
