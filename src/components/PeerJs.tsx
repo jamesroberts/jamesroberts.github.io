@@ -1,20 +1,33 @@
 import Peer, { DataConnection, MediaConnection } from 'peerjs';
 import React, { useState, useEffect } from 'react'
-import { Button, Input } from '@material-ui/core';
+import { Button, Input, TextField } from '@material-ui/core';
 import VideoChat from "./VideoChat";
 import { Switch } from '@material-ui/core/';
 import VideoCallIcon from '@material-ui/icons/VideoCall';
+import ShareIcon from '@material-ui/icons/Share';
+import { useLocation } from "react-router-dom";
 
 export default function PeerJs() {
-
     const [id, setId] = useState("");
     const [peer, setPeer] = useState(new Peer());
     const [friendId, setFriendId] = useState('');
+    const [linkCopied, setLinkCopied] = useState(false);
     const [dataConnection, setDataConnection] = useState<DataConnection | null>(null);
     const [mediaConnection, setMediaConnection] = useState<MediaConnection | null>(null);
     const [peerStreams, setPeerStreams] = useState<MediaStream[] | []>([]);
     const [userStream, setUserStream] = useState<MediaStream | null>(null);
     const [shareScreen, setShareScreen] = useState<boolean>(false);
+
+    function useQuery() {
+        return new URLSearchParams(useLocation().search);
+    }
+
+    // Clean this up later
+    let query = useQuery();
+    let friend = query.get("friend");
+    if (friend && friendId == '') {
+        setFriendId(friend);
+    }
 
     function handleNewPeer(id: string) {
         setId(id)
@@ -136,12 +149,24 @@ export default function PeerJs() {
         setShareScreen(event.target.checked)
     };
 
+    function generateLink() {
+        if (id) {
+            let link = window.location.protocol + "//" + window.location.host + "/?friend=" + id
+            navigator.clipboard.writeText("Hey Friend! Give me a call using this link :\n" + link)
+            setLinkCopied(true);
+        }
+    }
+
     return (
         <div>
-            <Input onChange={event => setFriendId(event.target.value)} />
+            <Input onChange={event => setFriendId(event.target.value)} placeholder="Caller ID" />
             {/* <Button variant="contained" color="primary" onClick={send}> Send </Button>
             <Button variant="contained" color="primary" onClick={connect}> Conect </Button> */}
-            <Button variant="contained" color="primary" onClick={call}> <VideoCallIcon fontSize="large" /> </Button>
+            <Button variant="contained" color="primary" onClick={call} style={{ margin: 10 }}> <VideoCallIcon fontSize="large" /> </Button>
+
+            <Button variant="contained" color="primary" onClick={generateLink}> <ShareIcon fontSize="large" /> </Button>
+            {linkCopied ? <div style={{ fontSize: 15, color: "green" }}>Link copied to clipboard</div> : null}
+            <br />
             <Switch
                 checked={shareScreen}
                 onChange={handleSwitchChange}
@@ -149,11 +174,11 @@ export default function PeerJs() {
                 name="checkedB"
                 inputProps={{ 'aria-label': 'primary checkbox' }}
             /> Share Screen
-            <div>
-                {"MY ID: " + id}
-                <br />
-                {"Connecting to: " + friendId}
-            </div>
+            < div >
+                {"Your Caller ID: " + id}
+                < br />
+                {(friendId != '') ? "Connecting to: " + friendId : null}
+            </div >
             <VideoChat peerStreams={peerStreams} userStream={userStream} />
             <div>
                 {
